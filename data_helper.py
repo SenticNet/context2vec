@@ -19,9 +19,10 @@ separate = "\t"
 neg_separate = " , "
 
 word2vec_path = os.path.join(os.path.expanduser("~"), "data", "embeddings", "GoogleNews-vectors-negative300.bin")
+glove_path = os.path.join(os.path.expanduser("~"), "data", "embeddings", "glove", "glove.840B.300d.txt")
 
 
-def build_word2vec(filename, word_dict, dim):
+def build_word2vec(filename, save_path, word_dict, dim):
     scale = np.sqrt(3.0 / dim)
     embeddings = np.random.uniform(-scale, scale, [len(word_dict), dim])
     if filename is None:
@@ -34,7 +35,34 @@ def build_word2vec(filename, word_dict, dim):
         elif word.lower() in word_dict:
             idx = word_dict[word.lower()]
             embeddings[idx] = w2v_model.wv[word]
-    np.savez_compressed("data/word2vec.npz", embeddings=embeddings)
+    np.savez_compressed(save_path, embeddings=embeddings)
+
+
+def build_glove(filename, context_path, target_path, word_dict, verb_dict, dim):
+    scale = np.sqrt(3.0 / dim)
+    context_emb = np.random.uniform(-scale, scale, [len(word_dict), dim])
+    target_emb = np.random.uniform(-scale, scale, [len(verb_dict), dim])
+    with codecs.open(filename, mode="r", encoding="utf-8") as f:
+        for line in tqdm(f, total=int(2.2e6), desc="Load glove embeddings"):
+            line = line.lstrip().rstrip().split(" ")
+            word = line[0]
+            vector = [float(x) for x in line[1:]]
+            # for context embedding
+            if word in word_dict:
+                idx = word_dict[word]
+                context_emb[idx] = np.asarray(vector)
+            elif word.lower() in word_dict:
+                idx = word_dict[word.lower()]
+                context_emb[idx] = np.asarray(vector)
+            # for target embedding
+            if word in verb_dict:
+                idx = verb_dict[word]
+                target_emb[idx] = np.asarray(vector)
+            elif word.lower() in verb_dict:
+                idx = verb_dict[word.lower()]
+                target_emb[idx] = np.asarray(vector)
+    np.savez_compressed(context_path, embeddings=context_emb)
+    np.savez_compressed(target_path, embeddings=target_emb)
 
 
 def ukwac_corpus_iterator(ukwac_path=None, lowercase=True):
